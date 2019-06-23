@@ -10,8 +10,8 @@ from sklearn.utils import check_random_state
 from sklearn.utils.fixes import sp_version
 
 from .transformers import CategoricalEncoder
-from .transformers import Normalize
-from .transformers import Identity
+from .transformers import Normalize, EvenNormalize
+from .transformers import Identity, EvenIdentity
 from .transformers import Log10
 from .transformers import Pipeline
 
@@ -387,6 +387,50 @@ class Integer(Dimension):
                                "the space, not %s and %s." % (a, b))
         return abs(a - b)
 
+
+class EvenInteger(space.Integer):
+    def __init__(self, low: int, high: int, transform=None, name=None):
+        if (type(low) != int) or (type(high) != int):
+            raise TypeError("low, high have to be int")
+
+        if low % 2 != 0:
+            raise ValueError("low has to be even int")
+
+        if high % 2 != 0:
+            raise ValueError("high has to be even int")
+
+        if high <= low:
+            raise ValueError("the lower bound {} has to be less than the"
+                             " upper bound {}".format(low, high))
+        super().__init__(low, high, transform=transform, name=name)
+
+        if transform is None:
+            transform = "identity"
+
+        self.transform_ = transform
+
+        if transform == "normalize":
+            self._rvs = uniform(0, 1)
+            self.transformer = EvenNormalize(low, high, is_int=True)
+        else:
+            self._rvs = randint(self.low / 2, (self.high) / 2 + 1)
+            self.transformer = EvenIdentity()
+
+    def __contains__(self, point):
+        if int(point) % 2 != 0:
+            return False
+
+        return self.low / 2 <= int(int(point) / 2) <= self.high / 2
+
+    def __repr__(self):
+        return 'Even' + super().__repr__()
+
+    @property
+    def transformed_bounds(self):
+        if self.transform_ == "normalize":
+            return 0, 1
+        else:
+            return (self.low / 2, self.high / 2)
 
 class Categorical(Dimension):
     def __init__(self, categories, prior=None, transform=None, name=None):
