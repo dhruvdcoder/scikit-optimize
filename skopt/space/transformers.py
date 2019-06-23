@@ -131,7 +131,35 @@ class Normalize(Transformer):
         if self.is_int:
             return np.round(X_orig).astype(np.int)
         return X_orig
+    
+class EvenNormalize(transformers.Normalize):
+    def __init__(self, low: int, high: int, is_int=True):
+        low = int((int(low) + int(low) % 2) / 2)
+        high = int((int(high) - int(high) % 2) / 2)
+        super().__init__(low, high, is_int=is_int)
 
+    def transform(self, x):
+        x = np.asarray(x)
+
+        if x.dtype != int:
+            raise TypeError("Input to transform should have type int")
+
+        if any(x % 2 != 0):
+            raise ValueError(
+                "Input to transform has to contain all even integers")
+
+        return super().transform(x / 2)
+
+    def inverse_transform(self, x):
+        return super().inverse_transform(x) * 2
+
+
+class EvenIdentity(transformers.Identity):
+    def inverse_transform(self, x):
+        return x * 2
+
+    def transform(self, x):
+        return x / 2
 
 class Pipeline(Transformer):
     """
