@@ -132,7 +132,7 @@ class Normalize(Transformer):
             return np.round(X_orig).astype(np.int)
         return X_orig
     
-class EvenNormalize(transformers.Normalize):
+class EvenNormalize(Normalize):
     def __init__(self, low: int, high: int, is_int=True):
         low = int((int(low) + int(low) % 2) / 2)
         high = int((int(high) - int(high) % 2) / 2)
@@ -154,7 +154,7 @@ class EvenNormalize(transformers.Normalize):
         return super().inverse_transform(x) * 2
 
 
-class EvenIdentity(transformers.Identity):
+class EvenIdentity(Identity):
     def inverse_transform(self, x):
         return x * 2
 
