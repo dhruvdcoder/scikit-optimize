@@ -388,7 +388,7 @@ class Integer(Dimension):
         return abs(a - b)
 
 
-class EvenInteger(space.Integer):
+class EvenInteger(Integer):
     def __init__(self, low: int, high: int, transform=None, name=None):
         if (type(low) != int) or (type(high) != int):
             raise TypeError("low, high have to be int")
