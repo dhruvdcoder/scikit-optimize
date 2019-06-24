@@ -698,3 +698,7 @@ def points_asdict(dims_list, points_list):
              for dim_value, dim in zip(point, dims_list)})
 
     return res
+
+
+def points_aslistoftuples(dims_list, points_list):
+    return points_asdict(dims_list, points_list).items()
