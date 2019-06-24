@@ -701,4 +701,4 @@ def points_asdict(dims_list, points_list):
 
 
 def points_aslistoftuples(dims_list, points_list):
-    return points_asdict(dims_list, points_list).items()
+    return [point.items() for point in points_asdict(dims_list, points_list)]
