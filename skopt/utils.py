@@ -56,6 +56,7 @@ def create_result(Xi, yi, space=None, rng=None, specs=None, models=None):
     """
     res = OptimizeResult()
     yi = np.asarray(yi)
+
     if np.ndim(yi) == 2:
         res.log_time = np.ravel(yi[:, 1])
         yi = np.ravel(yi[:, 0])
@@ -68,6 +69,7 @@ def create_result(Xi, yi, space=None, rng=None, specs=None, models=None):
     res.space = space
     res.random_state = rng
     res.specs = specs
+
     return res
 
 
@@ -92,9 +94,11 @@ def eval_callbacks(callbacks, result):
         Decision of the callbacks whether or not to keep optimizing
     """
     stop = False
+
     if callbacks:
         for c in callbacks:
             decision = c(result)
+
             if decision is not None:
                 stop = stop or decision
 
@@ -130,6 +134,7 @@ def dump(res, filename, store_objective=True, **kwargs):
     * `**kwargs` [other keyword arguments]:
         All other keyword arguments will be passed to `joblib.dump`.
     """
+
     if store_objective:
         dump_(res, filename, **kwargs)
 
@@ -169,6 +174,7 @@ def load(filename, **kwargs):
     * `res` [`OptimizeResult`, scipy object]:
         Reconstructed OptimizeResult instance.
     """
+
     return load_(filename, **kwargs)
 
 
@@ -185,17 +191,19 @@ def check_x_in_space(x, space):
         if not np.all([p in space for p in x]):
             raise ValueError("Not all points are within the bounds of"
                              " the space.")
+
         if any([len(p) != len(space.dimensions) for p in x]):
             raise ValueError("Not all points have the same dimensions as"
                              " the space.")
     elif is_listlike(x):
         if x not in space:
             raise ValueError("Point (%s) is not within the bounds of"
-                             " the space (%s)."
-                             % (x, space.bounds))
+                             " the space (%s)." % (x, space.bounds))
+
         if len(x) != len(space.dimensions):
-            raise ValueError("Dimensions of point (%s) and space (%s) do not match"
-                             % (x, space.bounds))
+            raise ValueError(
+                "Dimensions of point (%s) and space (%s) do not match" %
+                (x, space.bounds))
 
 
 def expected_minimum(res, n_random_starts=20, random_state=None):
@@ -224,12 +232,15 @@ def expected_minimum(res, n_random_starts=20, random_state=None):
 
     * `fun` [float]: the surrogate function value at the minimum.
     """
+
     def func(x):
         reg = res.models[-1]
         x = res.space.transform(x.reshape(1, -1))
+
         return reg.predict(x.reshape(1, -1))[0]
 
     xs = [res.x]
+
     if n_random_starts > 0:
         xs.extend(res.space.rvs(n_random_starts, random_state=random_state))
 
@@ -254,12 +265,11 @@ def has_gradients(estimator):
     ----------
     estimator: sklearn BaseEstimator instance.
     """
-    tree_estimators = (
-            ExtraTreesRegressor, RandomForestRegressor,
-            GradientBoostingQuantileRegressor
-    )
+    tree_estimators = (ExtraTreesRegressor, RandomForestRegressor,
+                       GradientBoostingQuantileRegressor)
 
     # cook_estimator() returns None for "dummy minimize" aka random values only
+
     if estimator is None:
         return False
 
@@ -267,12 +277,11 @@ def has_gradients(estimator):
         return False
 
     categorical_gp = False
+
     if hasattr(estimator, "kernel"):
         params = estimator.get_params()
-        categorical_gp = (
-            isinstance(estimator.kernel, HammingKernel) or
-            any([isinstance(params[p], HammingKernel) for p in params])
-        )
+        categorical_gp = (isinstance(estimator.kernel, HammingKernel) or any(
+            [isinstance(params[p], HammingKernel) for p in params]))
 
     return not categorical_gp
 
@@ -303,8 +312,10 @@ def cook_estimator(base_estimator, space=None, **kwargs):
     * `kwargs` [dict]:
         Extra parameters provided to the base_estimator at init time.
     """
+
     if isinstance(base_estimator, str):
         base_estimator = base_estimator.upper()
+
         if base_estimator not in ["GP", "ET", "RF", "GBRT", "DUMMY"]:
             raise ValueError("Valid strings for the base_estimator parameter "
                              " are: 'RF', 'ET', 'GP', 'GBRT' or 'DUMMY' not "
@@ -324,23 +335,26 @@ def cook_estimator(base_estimator, space=None, **kwargs):
 
         cov_amplitude = ConstantKernel(1.0, (0.01, 1000.0))
         # only special if *all* dimensions are categorical
+
         if is_cat:
             other_kernel = HammingKernel(length_scale=np.ones(n_dims))
         else:
             other_kernel = Matern(
                 length_scale=np.ones(n_dims),
-                length_scale_bounds=[(0.01, 100)] * n_dims, nu=2.5)
+                length_scale_bounds=[(0.01, 100)] * n_dims,
+                nu=2.5)
 
         base_estimator = GaussianProcessRegressor(
             kernel=cov_amplitude * other_kernel,
-            normalize_y=True, noise="gaussian",
+            normalize_y=True,
+            noise="gaussian",
             n_restarts_optimizer=2)
     elif base_estimator == "RF":
-        base_estimator = RandomForestRegressor(n_estimators=100,
-                                               min_samples_leaf=3)
+        base_estimator = RandomForestRegressor(
+            n_estimators=100, min_samples_leaf=3)
     elif base_estimator == "ET":
-        base_estimator = ExtraTreesRegressor(n_estimators=100,
-                                             min_samples_leaf=3)
+        base_estimator = ExtraTreesRegressor(
+            n_estimators=100, min_samples_leaf=3)
     elif base_estimator == "GBRT":
         gbrt = GradientBoostingRegressor(n_estimators=30, loss="quantile")
         base_estimator = GradientBoostingQuantileRegressor(base_estimator=gbrt)
@@ -349,6 +363,7 @@ def cook_estimator(base_estimator, space=None, **kwargs):
         return None
 
     base_estimator.set_params(**kwargs)
+
     return base_estimator
 
 
@@ -371,9 +386,8 @@ def dimensions_aslist(search_space):
         Example output with example inputs:
             [Real(0,1), Integer(2,4), Real(-1,1)]
     """
-    params_space_list = [
-        search_space[k] for k in sorted(search_space.keys())
-    ]
+    params_space_list = [search_space[k] for k in sorted(search_space.keys())]
+
     return params_space_list
 
 
@@ -407,8 +421,11 @@ def point_asdict(search_space, point_as_list):
             {'name1': 0.66, 'name2': 3, 'name3': -0.15}
     """
     params_dict = {
-        k: v for k, v in zip(sorted(search_space.keys()), point_as_list)
+        k: v
+
+        for k, v in zip(sorted(search_space.keys()), point_as_list)
     }
+
     return params_dict
 
 
@@ -441,9 +458,8 @@ def point_aslist(search_space, point_as_dict):
         Example output with example inputs:
             [0.66, 3, -0.15]
     """
-    point_as_list = [
-        point_as_dict[k] for k in sorted(search_space.keys())
-    ]
+    point_as_list = [point_as_dict[k] for k in sorted(search_space.keys())]
+
     return point_as_list
 
 
@@ -472,14 +488,18 @@ def normalize_dimensions(dimensions):
     """
     space = Space(dimensions)
     transformed_dimensions = []
+
     if space.is_categorical:
         # recreate the space and explicitly set transform to "identity"
         # this is a special case for GP based regressors
+
         for dimension in space:
-            transformed_dimensions.append(Categorical(dimension.categories,
-                                                      dimension.prior,
-                                                      name=dimension.name,
-                                                      transform="identity"))
+            transformed_dimensions.append(
+                Categorical(
+                    dimension.categories,
+                    dimension.prior,
+                    name=dimension.name,
+                    transform="identity"))
 
     else:
         for dimension in space.dimensions:
@@ -488,16 +508,19 @@ def normalize_dimensions(dimensions):
             # To make sure that GP operates in the [0, 1] space
             elif isinstance(dimension, Real):
                 transformed_dimensions.append(
-                    Real(dimension.low, dimension.high, dimension.prior,
-                         name=dimension.name,
-                         transform="normalize")
-                    )
+                    Real(
+                        dimension.low,
+                        dimension.high,
+                        dimension.prior,
+                        name=dimension.name,
+                        transform="normalize"))
             elif isinstance(dimension, Integer):
                 transformed_dimensions.append(
-                    dimension.__class__(dimension.low, dimension.high,
-                            name=dimension.name,
-                            transform="normalize")
-                    )
+                    dimension.__class__(
+                        dimension.low,
+                        dimension.high,
+                        name=dimension.name,
+                        transform="normalize"))
             else:
                 raise RuntimeError("Unknown dimension type "
                                    "(%s)" % type(dimension))
@@ -583,10 +606,11 @@ def use_named_args(dimensions):
         """
 
         # Ensure all dimensions are correctly typed.
+
         if not all(isinstance(dim, Dimension) for dim in dimensions):
             # List of the dimensions that are incorrectly typed.
-            err_dims = list(filter(lambda dim: not isinstance(dim, Dimension),
-                                   dimensions))
+            err_dims = list(
+                filter(lambda dim: not isinstance(dim, Dimension), dimensions))
 
             # Error message.
             msg = "All dimensions must be instances of the Dimension-class, but found: {}"
@@ -594,6 +618,7 @@ def use_named_args(dimensions):
             raise ValueError(msg)
 
         # Ensure all dimensions have names.
+
         if any(dim.name is None for dim in dimensions):
             # List of the dimensions that have no names.
             err_dims = list(filter(lambda dim: dim.name is None, dimensions))
@@ -626,6 +651,7 @@ def use_named_args(dimensions):
 
             # Ensure the number of dimensions match
             # the number of parameters in the list x.
+
             if len(x) != len(dimensions):
                 msg = "Mismatch in number of search-space dimensions. " \
                       "len(dimensions)=={} and len(x)=={}"
@@ -644,3 +670,31 @@ def use_named_args(dimensions):
         return wrapper
 
     return decorator
+
+
+def points_asdict(dims_list, points_list):
+    """ points_list has to be a list of list
+    where each internal list is a point and
+    the order of individual dimension values in
+    the internal list is assumed to be same as the
+    order of dimensions in the dims_list
+    """
+
+    if not isinstance(points_list, list):
+        raise TypeError("points_list has to be list")
+    res = []
+
+    for point in points_list:
+        if not isinstance(point, list):
+            raise TypeError("Each entry of point list has to be a list")
+
+        if len(point) != len(dims_list):
+            raise ValueError(
+                "Len of each entry of points_list has to be same as the "
+                "len of dims_list")
+
+        res.append(
+            {dim.name: dim_value
+             for dim_value, dim in zip(point, dims_list)})
+
+    return res
